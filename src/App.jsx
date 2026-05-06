@@ -20,6 +20,7 @@ import TimesheetEntriesPage from './pages/timesheet-entries/TimesheetEntriesPage
 import WeeklyTimesheetEntryPage from './pages/timesheet-entries/WeeklyTimesheetEntryPage'
 import HolidaysPage from './pages/holidays/HolidaysPage'
 import RegularizationPage from './pages/regularization/RegularizationPage'
+import SystemConfigurationPage from './pages/system-configuration/SystemConfigurationPage'
 import NotFound from './pages/NotFound'
 
 const DashboardRouter = () => {
@@ -84,6 +85,12 @@ function App() {
             }
           >
             <Route path="holidays" element={<HolidaysPage />} />
+          </Route>
+          <Route element={<RequireAuth roles={[ROLES.ADMIN]} />}>
+            <Route
+              path="system-configuration"
+              element={<SystemConfigurationPage />}
+            />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Route>

@@ -56,6 +56,11 @@ const navItems = [
     path: '/holidays',
     roles: [ROLES.EMPLOYEE, ROLES.MANAGER, ROLES.HR, ROLES.FINANCE],
   },
+  {
+    label: 'System Configuration',
+    path: '/system-configuration',
+    roles: [ROLES.ADMIN],
+  },
 ]
 
 export default navItems
