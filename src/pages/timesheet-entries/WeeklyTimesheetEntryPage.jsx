@@ -41,7 +41,7 @@ const WEEK_OPTIONS = Array.from({ length: MAX_WEEK_NUMBER + 1 }, (_, index) => (
 }))
 
 const ENTRY_FIELD_CONFIG = [
-  { label: 'Entry date', field: 'date', control: 'input', type: 'date', required: true },
+  { label: 'Entry date', field: 'date', control: 'input', type: 'date', required: true, readOnly: true },
   { label: 'Hours', field: 'hours', control: 'input', type: 'number', min: '0', max: '24', step: '1', required: true },
   { label: 'Minutes', field: 'minutes', control: 'input', type: 'number', min: '0', max: '59', step: '1', required: true },
   { label: 'Project', field: 'projectName', control: 'input', required: true },
@@ -321,9 +321,10 @@ const WeeklyTimesheetEntryPage = () => {
 
                 {ENTRY_FIELD_CONFIG.map((fieldConfig) => {
                   const commonProps = {
-                    value: entry[fieldConfig.field],
+                    value: fieldConfig.field === 'date' ? (entry[fieldConfig.field] || activeDate) : entry[fieldConfig.field],
                     onChange: (event) => handleEntryChange(originalIndex, fieldConfig.field, event.target.value),
                     required: fieldConfig.required,
+                    readOnly: fieldConfig.readOnly,
                   }
 
                   return (
@@ -334,8 +335,8 @@ const WeeklyTimesheetEntryPage = () => {
                         <Input
                           {...commonProps}
                           type={fieldConfig.type}
-                          min={fieldConfig.field === 'date' ? weekBounds?.start : fieldConfig.min}
-                          max={fieldConfig.field === 'date' ? weekBounds?.end : fieldConfig.max}
+                          min={fieldConfig.min}
+                          max={fieldConfig.max}
                           step={fieldConfig.step}
                         />
                       )}

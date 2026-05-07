@@ -24,7 +24,6 @@ const SideNav = ({ role }) => {
             </NavLink>
           ))}
       </nav>
-      <div className="mt-auto text-xs text-slate-400">v1.0</div>
     </aside>
   )
 }

@@ -45,6 +45,9 @@ const TimesheetEntriesPage = () => {
     projectId: '',
   })
   const [error, setError] = useState('')
+  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageInfo, setPageInfo] = useState({ page: 0, totalPages: 0 })
   const formCardRef = useRef(null)
   const currentYear = new Date().getFullYear()
   const yearOptions = Array.from({ length: currentYear - 2000 + 6 }, (_, index) =>
@@ -54,7 +57,8 @@ const TimesheetEntriesPage = () => {
   const loadEntries = useCallback(async (nextMonth = month, nextYear = year) => {
     setError('')
     try {
-      const data = await getEntries(token, { month: nextMonth, year: nextYear })
+      const data = await getEntries(token, { month: nextMonth, year: nextYear, page: currentPage, size: pageSize })
+      setPageInfo({ page: data?.pageNumber || currentPage, totalPages: data?.totalPages || 0 })
       if (Array.isArray(data)) {
         setEntries(data)
       } else if (Array.isArray(data?.content)) {
@@ -65,10 +69,13 @@ const TimesheetEntriesPage = () => {
     } catch (err) {
       setError(err.message || 'Unable to load entries')
     }
-  }, [token, month, year])
+  }, [token, month, year, currentPage, pageSize])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCurrentPage(0);
+  }, [month, year])
+
+  useEffect(() => {
     loadEntries()
   }, [loadEntries])
 
@@ -373,6 +380,55 @@ const TimesheetEntriesPage = () => {
             ))}
           </div>
         )}
+      </Card>
+
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <label htmlFor="pageSize" className="text-sm font-medium text-slate-700">
+              Page Size:
+            </label>
+            <div className="w-20">
+              <Input
+                id="pageSize"
+                type="number"
+                min="1"
+                value={pageSize}
+                onChange={(e) => {
+                  const newSize = parseInt(e.target.value, 10);
+                  if (newSize > 0) {
+                    setPageSize(newSize);
+                    setCurrentPage(0);
+                  }
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-medium text-slate-600">
+              Page {pageInfo.totalPages > 0 ? pageInfo.page + 1 : 0} of {pageInfo.totalPages}
+            </span>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setCurrentPage((prev) => Math.max(0, prev - 1))}
+                disabled={pageInfo.page <= 0}
+              >
+                &lt;
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setCurrentPage((prev) => Math.min(pageInfo.totalPages - 1, prev + 1))}
+                disabled={pageInfo.totalPages === 0 || pageInfo.page >= pageInfo.totalPages - 1}
+              >
+                &gt;
+              </Button>
+            </div>
+          </div>
+        </div>
       </Card>
     </div>
   )
