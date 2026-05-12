@@ -1,6 +1,7 @@
 import { useContext, useEffect, useMemo, useState } from 'react'
 import { AuthContext } from '../../auth/AuthContext'
 import { createWeeklyEntries } from '../../api/timesheetEntries'
+import { getProjectsForTimesheetEntryDropdown } from '../../api/projects'
 import PageHeader from '../../components/ui/PageHeader'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
@@ -44,8 +45,7 @@ const ENTRY_FIELD_CONFIG = [
   { label: 'Entry date', field: 'date', control: 'input', type: 'date', required: true, readOnly: true },
   { label: 'Hours', field: 'hours', control: 'input', type: 'number', min: '0', max: '24', step: '1', required: true },
   { label: 'Minutes', field: 'minutes', control: 'input', type: 'number', min: '0', max: '59', step: '1', required: true },
-  { label: 'Project', field: 'projectName', control: 'input', required: true },
-  { label: 'Project ID', field: 'projectId', control: 'input', type: 'number', min: '1', step: '1', required: true },
+  { label: 'Project', field: 'projectId', control: 'select', required: true },
   { label: 'Description', field: 'taskDescription', control: 'textarea', rows: '3', required: true },
 ]
 
@@ -61,6 +61,8 @@ const WeeklyTimesheetEntryPage = () => {
   const [success, setSuccess] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [activeDate, setActiveDate] = useState('')
+  const [projectOptions, setProjectOptions] = useState([])
+  const [projectError, setProjectError] = useState('')
 
   const currentYear = today.getFullYear()
   const yearOptions = Array.from({ length: currentYear - BASE_YEAR + FUTURE_YEAR_BUFFER }, (_, index) =>
@@ -89,6 +91,23 @@ const WeeklyTimesheetEntryPage = () => {
     })
   }, [weekDateOptions])
 
+  useEffect(() => {
+    const loadProjects = async () => {
+      setProjectError('')
+      try {
+        const data = await getProjectsForTimesheetEntryDropdown(token)
+        setProjectOptions(Array.isArray(data) ? data : [])
+      } catch (err) {
+        setProjectError(err.message || 'Unable to load projects')
+        setProjectOptions([])
+      }
+    }
+
+    if (token) {
+      loadProjects()
+    }
+  }, [token])
+
   const dateEntryCounts = useMemo(() => {
     return entries.reduce((acc, entry) => {
       if (!entry.date) {
@@ -113,6 +132,22 @@ const WeeklyTimesheetEntryPage = () => {
     setEntries((prev) => {
       const next = [...prev]
       next[index] = { ...next[index], [field]: value }
+      return next
+    })
+  }
+
+  const handleProjectChange = (index, value) => {
+    const selectedProject = projectOptions.find(
+      (project) => String(project.projectId) === value,
+    )
+
+    setEntries((prev) => {
+      const next = [...prev]
+      next[index] = {
+        ...next[index],
+        projectId: value,
+        projectName: selectedProject?.projectName || '',
+      }
       return next
     })
   }
@@ -181,14 +216,22 @@ const WeeklyTimesheetEntryPage = () => {
 
       const hours = Number(entry.hours)
       const minutes = Number(entry.minutes)
-      const projectId = Number(entry.projectId)
+      const selectedProject = projectOptions.find(
+        (project) => String(project.projectId) === String(entry.projectId),
+      )
+      const projectId = Number(selectedProject?.projectId)
+
+      if (!selectedProject || !Number.isInteger(projectId) || projectId <= 0) {
+        setError(`Please select a valid project for entry ${rowNo}.`)
+        return
+      }
 
       payloadEntries.push({
         date: entry.date,
         hours,
         minutes,
         taskDescription: entry.taskDescription.trim(),
-        projectName: entry.projectName.trim(),
+        projectName: selectedProject.projectName,
         projectId,
       })
     }
@@ -331,6 +374,30 @@ const WeeklyTimesheetEntryPage = () => {
                     <FormField key={fieldConfig.field} label={fieldConfig.label}>
                       {fieldConfig.control === 'textarea' ? (
                         <TextArea {...commonProps} rows={fieldConfig.rows} />
+                      ) : fieldConfig.control === 'select' ? (
+                        <Select
+                          {...commonProps}
+                          value={entry.projectId}
+                          onChange={(event) =>
+                            handleProjectChange(originalIndex, event.target.value)
+                          }
+                        >
+                          <option value="">Select project</option>
+                          {projectOptions.map((project) => (
+                            <option key={project.projectId} value={project.projectId}>
+                              {project.projectName}
+                            </option>
+                          ))}
+                          {entry.projectId &&
+                            !projectOptions.some(
+                              (project) =>
+                                String(project.projectId) === String(entry.projectId),
+                            ) && (
+                              <option value={entry.projectId}>
+                                {entry.projectName || `Project ${entry.projectId}`}
+                              </option>
+                            )}
+                        </Select>
                       ) : (
                         <Input
                           {...commonProps}
@@ -357,6 +424,7 @@ const WeeklyTimesheetEntryPage = () => {
           </div>
         </form>
 
+        {projectError && <p className="text-orange-700">{projectError}</p>}
         {error && <p className="text-orange-700">{error}</p>}
         {success && <p className="mt-[-10px] mb-0 text-sm font-semibold text-green-700">{success}</p>}
       </Card>

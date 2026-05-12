@@ -6,6 +6,7 @@ import {
   getEntries,
   updateEntry,
 } from '../../api/timesheetEntries'
+import { getProjectsForTimesheetEntryDropdown } from '../../api/projects'
 import PageHeader from '../../components/ui/PageHeader'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
@@ -36,6 +37,8 @@ const TimesheetEntriesPage = () => {
   const [month, setMonth] = useState(String(new Date().getMonth() + 1))
   const [year, setYear] = useState(String(new Date().getFullYear()))
   const [editing, setEditing] = useState(null)
+  const [projectOptions, setProjectOptions] = useState([])
+  const [projectError, setProjectError] = useState('')
   const [form, setForm] = useState({
     date: '',
     hours: '',
@@ -80,6 +83,23 @@ const TimesheetEntriesPage = () => {
   }, [loadEntries])
 
   useEffect(() => {
+    const loadProjects = async () => {
+      setProjectError('')
+      try {
+        const data = await getProjectsForTimesheetEntryDropdown(token)
+        setProjectOptions(Array.isArray(data) ? data : [])
+      } catch (err) {
+        setProjectError(err.message || 'Unable to load projects')
+        setProjectOptions([])
+      }
+    }
+
+    if (token) {
+      loadProjects()
+    }
+  }, [token])
+
+  useEffect(() => {
     if (editing) {
       formCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
@@ -89,13 +109,29 @@ const TimesheetEntriesPage = () => {
     setForm((prev) => ({ ...prev, [event.target.name]: event.target.value }))
   }
 
+  const handleProjectChange = (event) => {
+    const selectedId = event.target.value
+    const selectedProject = projectOptions.find(
+      (project) => String(project.projectId) === selectedId,
+    )
+
+    setForm((prev) => ({
+      ...prev,
+      projectId: selectedId,
+      projectName: selectedProject?.projectName || '',
+    }))
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault()
     setError('')
     try {
       const hours = Number(form.hours)
       const minutes = Number(form.minutes)
-      const projectId = Number(form.projectId)
+      const selectedProject = projectOptions.find(
+        (project) => String(project.projectId) === form.projectId,
+      )
+      const projectId = Number(selectedProject?.projectId)
 
       if (!Number.isInteger(hours) || hours < 0 || hours > 24) {
         setError('Hours must be between 0 and 24')
@@ -112,13 +148,8 @@ const TimesheetEntriesPage = () => {
         return
       }
 
-      if (!Number.isInteger(projectId) || projectId <= 0) {
-        setError('Project ID is required and must be a positive number')
-        return
-      }
-
-      if (!form.projectName.trim()) {
-        setError('Project name is required')
+      if (!selectedProject || !Number.isInteger(projectId) || projectId <= 0) {
+        setError('Please select a valid project')
         return
       }
 
@@ -132,7 +163,7 @@ const TimesheetEntriesPage = () => {
         hours,
         minutes,
         taskDescription: form.taskDescription.trim(),
-        projectName: form.projectName.trim(),
+        projectName: selectedProject.projectName,
         projectId,
       }
 
@@ -255,23 +286,27 @@ const TimesheetEntriesPage = () => {
             />
           </FormField>
           <FormField label="Project">
-            <Input
-              name="projectName"
-              value={form.projectName}
-              onChange={handleChange}
-              required
-            />
-          </FormField>
-          <FormField label="Project ID">
-            <Input
-              type="number"
+            <Select
               name="projectId"
               value={form.projectId}
-              onChange={handleChange}
-              min="1"
-              step="1"
+              onChange={handleProjectChange}
               required
-            />
+            >
+              <option value="">Select project</option>
+              {projectOptions.map((project) => (
+                <option key={project.projectId} value={project.projectId}>
+                  {project.projectName}
+                </option>
+              ))}
+              {form.projectId &&
+                !projectOptions.some(
+                  (project) => String(project.projectId) === form.projectId,
+                ) && (
+                  <option value={form.projectId}>
+                    {form.projectName || `Project ${form.projectId}`}
+                  </option>
+                )}
+            </Select>
           </FormField>
           <FormField label="Description">
             <TextArea
@@ -291,6 +326,7 @@ const TimesheetEntriesPage = () => {
             )}
           </div>
         </form>
+        {projectError && <p className="text-orange-700">{projectError}</p>}
         {error && <p className="text-orange-700">{error}</p>}
       </Card>
 
