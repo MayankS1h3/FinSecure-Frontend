@@ -426,7 +426,7 @@ const WeeklyTimesheetEntryPage = () => {
 
         {projectError && <p className="text-orange-700">{projectError}</p>}
         {error && <p className="text-orange-700">{error}</p>}
-        {success && <p className="mt-[-10px] mb-0 text-sm font-semibold text-green-700">{success}</p>}
+        {success && <p className="mt-[0px] mb-0 text-sm font-semibold text-green-700">{success}</p>}
       </Card>
     </div>
   )
